@@ -90,3 +90,60 @@ if st.session_state['editing_index'] is not None:
             st.session_state['edit_date'] = None
             st.success("Edit cancelled.")
             st.rerun()
+
+# FINAL INVOICE DOCUMENT GENERATION
+# ------------------------------------------------------------------------------
+st.subheader("Final Invoice Document")
+st.write(
+    "Click the button below to generate the invoice document with the entered dates. "
+    "Other fields remain as placeholders (e.g., {PATIENT_NAME}, {CPT_CODE})."
+)
+
+if st.button("Generate Invoice"):
+    # Use today's date for the invoice date.
+    invoice_date = datetime.date.today().strftime("%Y-%m-%d")
+    
+    # Build the invoice document as a multi-line string.
+    invoice_document = f"""
+R U S S E L L  C O L L I N S ,  P S Y . D.
+LICENSED MARRIAGE AND FAMILY THERAPIST
+License Number: # 40797
+
+Address: 1187 COAST VILLAGE ROAD #1-361
+City, State, ZIP: SANTA BARBARA, CA 93108
+Phone: 805.969.6370
+Email: RUSSELL@COLLINSMEDIATION.COM
+
+Date of Invoice: {invoice_date}
+
+I N V O I C E
+
+PATIENT INFORMATION:
+- Name: {{PATIENT_NAME}}
+- Address: {{ADDRESS}}
+- City, State, ZIP: {{CITY}}, {{STATE}}, {{ZIP}}
+- Telephone: {{TELEPHONE}}
+- Date of Birth: {{DOB}}
+- Gender: {{GENDER}}
+
+PROVIDER DETAILS:
+- NPI: 1033105911
+- License: LMFT 40797
+- Tax ID: 472027409
+
+Billing Table:
+| CPT CODE   | DIAGNOSIS (ICD 10) | CHARGES    | DATE OF SERVICE |
+|------------|--------------------|------------|-----------------|
+"""
+
+    # Generate a table row for each entered date.
+    if st.session_state['dates']:
+        for date_val in st.session_state['dates']:
+            invoice_document += f"| {{CPT_CODE}} | {{ICD10_CODE}} | ${{CHARGE}} | {date_val.strftime('%Y-%m-%d')} |\n"
+    else:
+        invoice_document += "| {CPT_CODE} | {ICD10_CODE} | ${CHARGE} | {DATE_OF_SERVICE} |\n"
+
+    invoice_document += "\nTOTAL CHARGES: ${TOTAL_AMOUNT}\n"
+
+    # Display the invoice in a code block to preserve the layout.
+    st.code(invoice_document, language="text")
