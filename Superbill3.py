@@ -56,7 +56,7 @@ if st.session_state['dates']:
         # "Remove" button to delete the date from the list.
         if col3.button("Remove", key=f"remove_{idx}"):
             st.session_state['dates'].pop(idx)
-            st.experimental_rerun()  # Rerun to immediately reflect changes.
+            st.rerun()  # Rerun to immediately reflect changes.
 else:
     st.write("No dates added yet.")
 
