@@ -1,109 +1,165 @@
 import streamlit as st
 import datetime
 
+# ==============================================================================
+# SESSION STATE INITIALIZATION
 # ------------------------------------------------------------------------------
-# Initialize session state variables if they don't already exist.
-# - 'dates' will store our list of service dates.
-# - 'editing_index' holds the index of the date currently being edited (if any).
-# - 'edit_date' temporarily holds the value during an edit.
-# ------------------------------------------------------------------------------
-if 'dates' not in st.session_state:
-    st.session_state['dates'] = []
+# Patient information (default values are empty)
+if 'patient_info' not in st.session_state:
+    st.session_state['patient_info'] = {
+        "name": "",
+        "address": "",
+        "city": "",
+        "state": "",
+        "zip": "",
+        "telephone": "",
+        "dob": None,
+        "gender": ""
+    }
+
+# List of services. Each service is a dict with keys:
+#   - "date": datetime.date object for the service date.
+#   - "diagnosis": string entered by the user.
+if 'services' not in st.session_state:
+    st.session_state['services'] = []
+
+# For editing an existing service entry.
 if 'editing_index' not in st.session_state:
     st.session_state['editing_index'] = None
-if 'edit_date' not in st.session_state:
-    st.session_state['edit_date'] = None
+if 'edit_service' not in st.session_state:
+    st.session_state['edit_service'] = None
 
+# ==============================================================================
+# PATIENT INFORMATION FORM
 # ------------------------------------------------------------------------------
-# Title and instructions (this section is analogous to a header in a document)
-# ------------------------------------------------------------------------------
-st.title("Service Dates Input")
-st.write("Enter the dates of service for your invoice below. This information "
-         "can later be dynamically inserted into your Superbill/Invoice.")
+st.header("Patient Information")
+with st.form("patient_info_form"):
+    name = st.text_input("Patient Name", value=st.session_state['patient_info']["name"])
+    address = st.text_input("Address", value=st.session_state['patient_info']["address"])
+    city = st.text_input("City", value=st.session_state['patient_info']["city"])
+    state_input = st.text_input("State", value=st.session_state['patient_info']["state"])
+    zip_code = st.text_input("ZIP Code", value=st.session_state['patient_info']["zip"])
+    telephone = st.text_input("Telephone", value=st.session_state['patient_info']["telephone"])
+    # Use a default DOB if not previously set.
+    default_dob = st.session_state['patient_info']["dob"] or datetime.date(2000, 1, 1)
+    dob = st.date_input("Date of Birth", value=default_dob)
+    gender = st.selectbox("Gender", options=["Male", "Female", "Other"], index=0)
+    
+    submit_patient = st.form_submit_button("Save Patient Info")
+    if submit_patient:
+        st.session_state['patient_info'] = {
+            "name": name,
+            "address": address,
+            "city": city,
+            "state": state_input,
+            "zip": zip_code,
+            "telephone": telephone,
+            "dob": dob,
+            "gender": gender
+        }
+        st.success("Patient information saved!")
 
+# ==============================================================================
+# SERVICE DATE & BILLING DETAILS FORM
 # ------------------------------------------------------------------------------
-# Form: Add a New Date of Service
-# ------------------------------------------------------------------------------
-with st.form("add_date_form", clear_on_submit=True):
-    # The date input widget defaults to today's date.
+st.header("Service Dates & Billing Details")
+with st.form("add_service_form", clear_on_submit=True):
     new_date = st.date_input("Select a Date of Service", datetime.date.today(), key="new_date_input")
+    new_diagnosis = st.text_input("Enter Diagnosis (ICD 10)", key="new_diagnosis_input")
+    add_service_submitted = st.form_submit_button("Add Service Date")
     
-    # The submit button for the form
-    add_submitted = st.form_submit_button("Add Date")
-    
-    if add_submitted:
-        # Validate: Prevent duplicate dates
-        if new_date in st.session_state['dates']:
+    if add_service_submitted:
+        # Check for duplicate dates.
+        duplicate = any(service["date"] == new_date for service in st.session_state['services'])
+        if duplicate:
             st.error("This date is already added. Please choose a different date.")
         else:
-            st.session_state['dates'].append(new_date)
-            st.success(f"Added date: {new_date.strftime('%Y-%m-%d')}")
+            st.session_state['services'].append({"date": new_date, "diagnosis": new_diagnosis})
+            st.success(f"Added service on {new_date.strftime('%Y-%m-%d')}.")
 
+# ==============================================================================
+# DISPLAY THE LIST OF SERVICES WITH OPTIONS TO EDIT OR REMOVE
 # ------------------------------------------------------------------------------
-# Display the List of Entered Dates with Options to Edit or Remove
-# ------------------------------------------------------------------------------
-st.subheader("Entered Dates")
-if st.session_state['dates']:
-    # Loop through the dates list and create a row for each date
-    for idx, date_val in enumerate(st.session_state['dates']):
-        # Use columns to align the date text with action buttons.
-        col1, col2, col3 = st.columns([2, 1, 1])
-        col1.write(date_val.strftime("%Y-%m-%d"))
-        # When "Edit" is clicked, set the editing index and initialize the edit date.
-        if col2.button("Edit", key=f"edit_{idx}"):
+st.subheader("Entered Service Dates & Diagnosis")
+if st.session_state['services']:
+    for idx, service in enumerate(st.session_state['services']):
+        col1, col2, col3, col4 = st.columns([2, 3, 1, 1])
+        col1.write(service["date"].strftime("%Y-%m-%d"))
+        col2.write(f"Diagnosis: {service['diagnosis']}")
+        if col3.button("Edit", key=f"edit_{idx}"):
             st.session_state['editing_index'] = idx
-            st.session_state['edit_date'] = date_val
-        # "Remove" button to delete the date from the list.
-        if col3.button("Remove", key=f"remove_{idx}"):
-            st.session_state['dates'].pop(idx)
-            st.rerun()  # Rerun to immediately reflect changes.
+            st.session_state['edit_service'] = service.copy()
+        if col4.button("Remove", key=f"remove_{idx}"):
+            st.session_state['services'].pop(idx)
+            st.rerun()  # Refresh immediately.
 else:
-    st.write("No dates added yet.")
+    st.write("No service dates added yet.")
 
-# ------------------------------------------------------------------------------
-# If a date is being edited, display an Edit Form.
+# ==============================================================================
+# EDIT SERVICE ENTRY FORM (if applicable)
 # ------------------------------------------------------------------------------
 if st.session_state['editing_index'] is not None:
-    st.subheader("Edit Date")
+    st.subheader("Edit Service Date & Diagnosis")
     edit_index = st.session_state['editing_index']
     
-    with st.form("edit_date_form"):
-        # Display a date input initialized with the date to be edited.
-        edited_date = st.date_input("Edit Date", st.session_state['edit_date'], key="edit_date_input")
-        edit_submitted = st.form_submit_button("Update Date")
+    with st.form("edit_service_form"):
+        edited_date = st.date_input(
+            "Edit Date of Service",
+            st.session_state['edit_service']["date"],
+            key="edit_date_input"
+        )
+        edited_diagnosis = st.text_input(
+            "Edit Diagnosis (ICD 10)",
+            value=st.session_state['edit_service']["diagnosis"],
+            key="edit_diagnosis_input"
+        )
+        edit_service_submitted = st.form_submit_button("Update Service")
         cancel_edit = st.form_submit_button("Cancel")
         
-        if edit_submitted:
-            # Validate: Ensure the edited date is not a duplicate (unless unchanged).
-            if edited_date in st.session_state['dates'] and edited_date != st.session_state['dates'][edit_index]:
-                st.error("This date is already in the list. Please choose a different date.")
+        if edit_service_submitted:
+            # If the date is changed, ensure it's not a duplicate.
+            if edited_date != st.session_state['services'][edit_index]["date"]:
+                duplicate = any(
+                    i != edit_index and s["date"] == edited_date 
+                    for i, s in enumerate(st.session_state['services'])
+                )
+                if duplicate:
+                    st.error("This date is already in the list. Please choose a different date.")
+                else:
+                    st.session_state['services'][edit_index] = {"date": edited_date, "diagnosis": edited_diagnosis}
+                    st.success("Service updated!")
+                    st.session_state['editing_index'] = None
+                    st.session_state['edit_service'] = None
+                    st.rerun()
             else:
-                st.session_state['dates'][edit_index] = edited_date
-                st.success(f"Updated date to: {edited_date.strftime('%Y-%m-%d')}")
-                # Reset the editing state
+                # Date unchanged; update only diagnosis.
+                st.session_state['services'][edit_index]["diagnosis"] = edited_diagnosis
+                st.success("Service updated!")
                 st.session_state['editing_index'] = None
-                st.session_state['edit_date'] = None
-                st.experimental_rerun()
+                st.session_state['edit_service'] = None
+                st.rerun()
         elif cancel_edit:
-            # If editing is canceled, reset the editing state.
             st.session_state['editing_index'] = None
-            st.session_state['edit_date'] = None
+            st.session_state['edit_service'] = None
             st.success("Edit cancelled.")
             st.rerun()
 
-# FINAL INVOICE DOCUMENT GENERATION
+# ==============================================================================
+# GENERATE INVOICE DOCUMENT
 # ------------------------------------------------------------------------------
-st.subheader("Final Invoice Document")
-st.write(
-    "Click the button below to generate the invoice document with the entered dates. "
-    "Other fields remain as placeholders (e.g., {PATIENT_NAME}, {CPT_CODE})."
-)
-
+st.header("Generate Invoice Document")
 if st.button("Generate Invoice"):
-    # Use today's date for the invoice date.
     invoice_date = datetime.date.today().strftime("%Y-%m-%d")
+    patient_info = st.session_state['patient_info']
     
-    # Build the invoice document as a multi-line string.
+    # Billing table constants.
+    cpt_code = "90837"
+    charges = 225
+    table_rows = ""
+    for service in st.session_state['services']:
+        table_rows += f"| {cpt_code} | {service['diagnosis']} | ${charges} | {service['date'].strftime('%Y-%m-%d')} |\n"
+    total_charges = charges * len(st.session_state['services'])
+    
     invoice_document = f"""
 R U S S E L L  C O L L I N S ,  P S Y . D.
 LICENSED MARRIAGE AND FAMILY THERAPIST
@@ -119,12 +175,12 @@ Date of Invoice: {invoice_date}
 I N V O I C E
 
 PATIENT INFORMATION:
-- Name: {{PATIENT_NAME}}
-- Address: {{ADDRESS}}
-- City, State, ZIP: {{CITY}}, {{STATE}}, {{ZIP}}
-- Telephone: {{TELEPHONE}}
-- Date of Birth: {{DOB}}
-- Gender: {{GENDER}}
+- Name: {patient_info['name']}
+- Address: {patient_info['address']}
+- City, State, ZIP: {patient_info['city']}, {patient_info['state']}, {patient_info['zip']}
+- Telephone: {patient_info['telephone']}
+- Date of Birth: {patient_info['dob'].strftime("%Y-%m-%d") if patient_info['dob'] else ""}
+- Gender: {patient_info['gender']}
 
 PROVIDER DETAILS:
 - NPI: 1033105911
@@ -134,16 +190,8 @@ PROVIDER DETAILS:
 Billing Table:
 | CPT CODE   | DIAGNOSIS (ICD 10) | CHARGES    | DATE OF SERVICE |
 |------------|--------------------|------------|-----------------|
+{table_rows}
+TOTAL CHARGES: ${total_charges}
 """
-
-    # Generate a table row for each entered date.
-    if st.session_state['dates']:
-        for date_val in st.session_state['dates']:
-            invoice_document += f"| {{CPT_CODE}} | {{ICD10_CODE}} | ${{CHARGE}} | {date_val.strftime('%Y-%m-%d')} |\n"
-    else:
-        invoice_document += "| {CPT_CODE} | {ICD10_CODE} | ${CHARGE} | {DATE_OF_SERVICE} |\n"
-
-    invoice_document += "\nTOTAL CHARGES: ${TOTAL_AMOUNT}\n"
-
-    # Display the invoice in a code block to preserve the layout.
     st.code(invoice_document, language="text")
+
