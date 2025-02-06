@@ -174,18 +174,46 @@ Date of Invoice: {invoice_date}
 
 I N V O I C E
 
-PATIENT INFORMATION:
-- Name: {patient_info['name']}
-- Address: {patient_info['address']}
-- City, State, ZIP: {patient_info['city']}, {patient_info['state']}, {patient_info['zip']}
-- Telephone: {patient_info['telephone']}
-- Date of Birth: {patient_info['dob'].strftime("%Y-%m-%d") if patient_info['dob'] else ""}
-- Gender: {patient_info['gender']}
 
-PROVIDER DETAILS:
-- NPI: 1033105911
-- License: LMFT 40797
-- Tax ID: 472027409
+
+# -------------------------------
+# Patient Information (fillable)
+# -------------------------------
+st.markdown("### Patient Information (fillable)")
+
+# Arrange the fields in a simple table-like layout.
+patient_name = st.text_input("Name", "")
+patient_address = st.text_input("Address", "")
+patient_city_state_zip = st.text_input("City, State, ZIP", "")
+patient_telephone = st.text_input("Telephone", "")
+patient_dob = st.text_input("Date of Birth", "1/1/2000")
+patient_gender = st.text_input("Gender", "")
+
+# -------------------------------
+# Provider Information (static)
+# -------------------------------
+st.markdown("### Provider Information (static)")
+
+# Display static provider details in a table-like format.
+col1, col2 = st.columns(2)
+with col1:
+    st.text("NPI")
+    st.text("License")
+    st.text("Tax ID")
+with col2:
+    st.text("1033105911")
+    st.text("LMFT 40797")
+    st.text("472027409")
+
+# Optionally, you can display the collected patient information
+# (e.g., for debugging or confirmation) as a table:
+if st.button("Show Entered Patient Information"):
+    data = {
+        "Field": ["Name", "Address", "City, State, ZIP", "Telephone", "Date of Birth", "Gender"],
+        "Value": [patient_name, patient_address, patient_city_state_zip, patient_telephone, patient_dob, patient_gender]
+    }
+    st.table(data)
+
 
 Billing Table:
 | CPT CODE   | DIAGNOSIS (ICD 10) | CHARGES    | DATE OF SERVICE |
